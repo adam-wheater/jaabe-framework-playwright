@@ -1,8 +1,8 @@
 ﻿using Microsoft.Playwright;
 using NUnit.Framework;
-using System.Reflection;
-using System.Threading.Channels;
-using System.Xml;
+using System.Collections.Generic;
+using Newtonsoft.Json;
+using System;
 
 namespace Playwright_Automation
 {
@@ -17,6 +17,7 @@ namespace Playwright_Automation
         protected static IPlaywright Playwright;
         protected IBrowser Browser;
         protected IPage Page;
+        private Dictionary<string, string> browserstackOptions;
 
         [OneTimeSetUp]
         public async Task OneTimeSetUp()
@@ -40,7 +41,6 @@ namespace Playwright_Automation
             Playwright = await Microsoft.Playwright.Playwright.CreateAsync();
         }
 
-
         [OneTimeTearDown]
         public async Task OneTimeTearDown()
         {
@@ -50,12 +50,22 @@ namespace Playwright_Automation
             }
         }
 
-
         [SetUp]
         public async Task SetUp()
         {
-            // Launch new browser for each test
-            Browser = await Playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions { Headless = Headless });
+            browserstackOptions = new Dictionary<string, string>();
+            browserstackOptions.Add("name", "Playwright first sample test");
+            browserstackOptions.Add("build", "playwright-dotnet-1");
+            browserstackOptions.Add("os", "osx");
+            browserstackOptions.Add("os_version", "catalina");
+            browserstackOptions.Add("browser", BrowserName);
+            browserstackOptions.Add("browserstack.username", "BROWSERSTACK_USERNAME");
+            browserstackOptions.Add("browserstack.accessKey", "BROWSERSTACK_ACCESS_KEY");
+
+            string capsJson = JsonConvert.SerializeObject(browserstackOptions);
+            string cdpUrl = "wss://cdp.browserstack.com/playwright?caps=" + Uri.EscapeDataString(capsJson);
+
+            Browser = await Playwright.Chromium.ConnectAsync(cdpUrl);
             var context = await Browser.NewContextAsync();
             Page = await context.NewPageAsync();
 
@@ -67,6 +77,11 @@ namespace Playwright_Automation
         public async Task TearDown()
         {
             await Browser.DisposeAsync();
+        }
+
+        public static async Task MarkTestStatus(string status, string reason, IPage page)
+        {
+            await page.EvaluateAsync("_ => {}", "browserstack_executor: {\"action\": \"setSessionStatus\", \"arguments\": {\"status\":\"" + status + "\", \"reason\": \"" + reason + "\"}}");
         }
     }
 }
