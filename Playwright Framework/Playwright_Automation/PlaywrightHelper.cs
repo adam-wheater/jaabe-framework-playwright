@@ -250,5 +250,55 @@ namespace Playwright_Automation
             }
         }
 
+        public async Task WaitForNetworkIdleAsync(IPage page, int timeoutMillis = 500, int maxInflightRequests = 0)
+        {
+            var inflightRequests = new HashSet<IRequest>();
+            var idleTaskSource = new TaskCompletionSource<bool>();
+            var timeoutTaskSource = new TaskCompletionSource<bool>();
+
+            var timeoutToken = new CancellationTokenSource(timeoutMillis).Token;
+
+            timeoutToken.Register(() => timeoutTaskSource.TrySetResult(true), useSynchronizationContext: false);
+
+            page.Request += (sender, e) =>
+            {
+                inflightRequests.Add(e);
+                CheckIdleState();
+            };
+
+            page.RequestFinished += (sender, e) =>
+            {
+                inflightRequests.Remove(e);
+                CheckIdleState();
+            };
+
+            page.RequestFailed += (sender, e) =>
+            {
+                inflightRequests.Remove(e);
+                CheckIdleState();
+            };
+
+            void CheckIdleState()
+            {
+                if (inflightRequests.Count <= maxInflightRequests)
+                {
+                    idleTaskSource.TrySetResult(true);
+                }
+            }
+
+            try
+            {
+                await Task.WhenAny(idleTaskSource.Task, timeoutTaskSource.Task);
+            }
+            finally
+            {
+                // Cleanup
+                page.Request -= (sender, e) => inflightRequests.Add(e);
+                page.RequestFinished -= (sender, e) => inflightRequests.Remove(e);
+                page.RequestFailed -= (sender, e) => inflightRequests.Remove(e);
+            }
+        }
+
+
     }
 }

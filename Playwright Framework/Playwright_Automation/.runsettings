@@ -1,0 +1,15 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<RunSettings>
+	<TestRunParameters>
+		<Parameter name="WebAppUrl" value="https://jaabeblazor.com/"/>
+	</TestRunParameters>
+	<Playwright>
+		<BrowserName>chromium</BrowserName>
+		<LaunchOptions>
+			<Headless>false</Headless>
+			<Channel>chrome</Channel>
+			<Timeout>100000</Timeout>
+		</LaunchOptions>
+	</Playwright>
+</RunSettings>
+
