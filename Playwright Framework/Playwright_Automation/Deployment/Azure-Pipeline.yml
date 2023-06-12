@@ -1,0 +1,70 @@
+trigger:
+  branches:
+    include:
+    - development
+
+variables:
+  dotnetVersion: '7.0.x'  # Define .NET version as a variable
+  projectName: 'Playwright_Automation'  # Define project name as a variable
+  solutionName: 'Playwright_Automation'  # Define solution name as a variable
+  projectFile: '$(solutionName)/$(projectName).csproj'  # Define project file path as a variable
+
+stages:
+- stage: Install
+  displayName: 'Installation Stage'
+  jobs:
+  - job: InstallDependencies
+    displayName: 'Install .NET and Playwright'
+    pool:
+      vmImage: ubuntu-latest
+    steps:
+    - task: UseDotNet@2
+      displayName: 'Install .NET'
+      inputs:
+        packageType: 'sdk'
+        version: '$(dotnetVersion)'
+        
+    - task:  DotNetCoreCLI@2
+      displayName: New Manifest for tool
+      inputs:
+        command: custom
+        custom: 'new '
+        arguments: tool-manifest
+        
+    - task: DotNetCoreCLI@2
+      displayName: 'Install Playwright'
+      inputs:
+        command: custom
+        custom: 'tool '
+        arguments: install Microsoft.Playwright.CLI
+
+- stage: BuildAndTest
+  displayName: 'Build and Test Stage'
+  dependsOn: Install
+  jobs:
+  - job: Build
+    displayName: 'Build test project'
+    pool:
+      vmImage: ubuntu-latest
+    steps:
+    - task: DotNetCoreCLI@2
+      displayName: 'Build test project'
+      inputs:
+        command: 'build'
+        projects: '$(projectFile)'
+
+    - task: DotNetCoreCLI@2
+      displayName: 'Run Playwright Install'
+      inputs:
+        command: custom
+        custom: 'tool '
+        arguments: run playwright install
+        
+    - task: DotNetCoreCLI@2
+      displayName: 'Run tests'
+      inputs:
+        command: 'test'
+        projects: '$(projectFile)'
+        arguments: '-e BROWSER=chromium'
+        testRunTitle: 'Chrome results'
+        buildProperties:
